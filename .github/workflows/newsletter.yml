@@ -1,0 +1,120 @@
+name: Build Sheet
+
+on:
+  schedule:
+    # Mondays 13:00 UTC, about 9:00am US Eastern.
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Issue date YYYY-MM-DD (default: today UTC)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      issue_date: ${{ steps.render.outputs.issue_date }}
+      pages_url: ${{ steps.render.outputs.pages_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Render issue
+        id: render
+        env:
+          ISSUE_DATE: ${{ inputs.date }}
+        run: python scripts/build_issue.py --github-output "$GITHUB_OUTPUT"
+
+      - name: Commit rendered issue and state
+        run: |
+          git config user.name "foundercloud-newsletter"
+          git config user.email "weeklyupdate@starthawk.io"
+          git add issues state
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Render Build Sheet ${{ steps.render.outputs.issue_date }}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: issues
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  zoho:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fast-forward to the rendered commit
+        run: git pull --ff-only origin main
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create unsent Zoho draft
+        env:
+          ZOHO_CLIENT_ID: ${{ secrets.ZOHO_CLIENT_ID }}
+          ZOHO_CLIENT_SECRET: ${{ secrets.ZOHO_CLIENT_SECRET }}
+          ZOHO_REFRESH_TOKEN: ${{ secrets.ZOHO_REFRESH_TOKEN }}
+          ZOHO_LIST_KEY: ${{ secrets.ZOHO_LIST_KEY }}
+          ZOHO_FROM_EMAIL: ${{ secrets.ZOHO_FROM_EMAIL }}
+          ZOHO_TOPIC_ID: ${{ secrets.ZOHO_TOPIC_ID }}
+          ISSUE_DATE: ${{ needs.build.outputs.issue_date }}
+          CONTENT_URL: ${{ needs.build.outputs.pages_url }}
+        run: python scripts/zoho_draft.py
+
+      - name: Record campaign key
+        run: |
+          git config user.name "foundercloud-newsletter"
+          git config user.email "weeklyupdate@starthawk.io"
+          git add state/featured.json
+          if git diff --cached --quiet; then
+            echo "No campaign key to record."
+          else
+            git commit -m "Record Zoho draft key for ${{ needs.build.outputs.issue_date }}"
+            git push origin HEAD:main
+          fi

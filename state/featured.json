@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "posts": [
+    {
+      "slug": "two-orchestrators-zero-employees-the-high-stakes-reality-of-the-ai-startup",
+      "issue": "2026-09-12",
+      "title": "Two Orchestrators, Zero Employees: The High-Stakes Reality of the AI Startup"
+    },
+    {
+      "slug": "how-to-split-equity-with-a-co-founder-without-destroying-the-company",
+      "issue": "2026-09-12",
+      "title": "How to Split Equity With a Co-Founder Without Destroying the Company"
+    },
+    {
+      "slug": "the-ai-sharecropper-why-your-80percent-saas-margins-are-an-illusion",
+      "issue": "2026-07-08",
+      "title": "The AI Sharecropper: Why Your 80% SaaS Margins Are an Illusion"
+    },
+    {
+      "slug": "the-bounty-hunter-economy-the-death-of-the-dollar99month-subscription",
+      "issue": "2026-07-08",
+      "title": "The Bounty Hunter Economy: The Death of the $99/Month Subscription"
+    },
+    {
+      "slug": "the-glass-box-moat-why-showing-your-math-is-the-ultimate-ui-feature-in-2026",
+      "issue": "2026-05-04",
+      "title": "The Glass Box Moat: Why \"Showing Your Math\" is the Ultimate UI Feature in 2026"
+    },
+    {
+      "slug": "the-uncanny-valley-of-pmf-building-startups-that-survive-real-world-deployment",
+      "issue": "2026-05-04",
+      "title": "The Uncanny Valley of PMF: Building Startups That Survive Real-World Deployment"
+    },
+    {
+      "slug": "the-solo-founder-tax-what-building-alone-actually-costs-you",
+      "issue": "2026-10-28",
+      "title": "The Solo Founder Tax: What Building Alone Actually Costs You"
+    },
+    {
+      "slug": "the-36-month-pop-up-why-you-should-build-disposable-startups",
+      "issue": "2026-10-28",
+      "title": "The 36-Month Pop-Up: Why You Should Build \"Disposable\" Startups"
+    }
+  ],
+  "founders": [
+    {
+      "id": "cmv688sos07fi0615ccy1ewgr",
+      "issue": "2026-10-28",
+      "name": "Jeffrey"
+    },
+    {
+      "id": "cmv3jlgzc07g70627ynbqrd6a",
+      "issue": "2026-10-28",
+      "name": "Mithun"
+    },
+    {
+      "id": "cmv1v5q8v0h760686y56a9we6",
+      "issue": "2026-10-28",
+      "name": "Hamin"
+    },
+    {
+      "id": "cmv19nxpy0bhd06863wgsbwin",
+      "issue": "2026-10-28",
+      "name": "Ren"
+    }
+  ],
+  "issues": {
+    "2026-10-28": {
+      "subject": "[EDIT ME] Build Sheet: The Solo Founder Tax",
+      "preheader": "[EDIT ME] This week's essays: The Solo Founder Tax, and The 36-Month Pop-Up.",
+      "community_count_raw": 32949,
+      "community_count_display": "32,500+",
+      "posts": [
+        "the-solo-founder-tax-what-building-alone-actually-costs-you",
+        "the-36-month-pop-up-why-you-should-build-disposable-startups"
+      ],
+      "founders": [
+        "cmv688sos07fi0615ccy1ewgr",
+        "cmv3jlgzc07g70627ynbqrd6a",
+        "cmv1v5q8v0h760686y56a9we6",
+        "cmv19nxpy0bhd06863wgsbwin"
+      ],
+      "pages_path": "2026-10-28.html",
+      "needs_edit": true
+    }
+  }
+}

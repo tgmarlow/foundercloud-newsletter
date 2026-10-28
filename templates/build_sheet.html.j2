@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="build-sheet-issue" content="{{ issue_date }}">
+  <title>{{ subject }}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  <![endif]-->
+  <style>
+    body, table, td, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }
+    @media only screen and (max-width: 480px) {
+      .contentInner, .cols, .zpAlignPos { width: 100% !important; max-width: 100% !important; }
+      .paddingcomp { padding-left: 15px !important; padding-right: 15px !important; }
+      .logo img { width: 100% !important; max-width: 300px !important; height: auto !important; }
+      h1 { font-size: 28px !important; line-height: 100% !important; }
+    }
+  </style>
+</head>
+<body bgcolor="#f0f0f0" style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial, Helvetica, sans-serif;font-size:12px;color:#000000;">
+  <!-- Preheader: hidden in the body, shown as the inbox snippet. Zoho fills nothing here. -->
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#f0f0f0;">
+    {{ preheader }}
+    &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+  </div>
+  <!-- community-count-raw: {{ community_count_raw }} -->
+  <center>
+    <table role="presentation" bgcolor="#f0f0f0" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0f0f0;width:100%;">
+      <tr>
+        <td align="center" style="padding:0;">
+          <table role="presentation" class="contentInner" bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="600" style="width:600px;max-width:600px;background-color:#ffffff;margin:0 auto;">
+            <tr>
+              <td align="center" class="paddingcomp logo" style="padding:20px 15px 7px 15px;">
+                <a href="{{ site_url }}" target="_blank" style="text-decoration:none;">
+                  <img src="{{ pages_base_url }}/assets/foundercloud-logo.png" width="300" alt="FounderCloud" style="display:block;width:300px;max-width:300px;height:auto;border:0;margin:0 auto;">
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:7px 15px;">
+                <table role="presentation" bgcolor="#004ab5" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#004ab5;width:100%;">
+                  <tr>
+                    <td style="padding:15px;font-family:Arial, Helvetica, sans-serif;text-align:left;">
+                      <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:14pt;line-height:19pt;color:#ffffff;font-weight:bold;">The Build Sheet from FounderCloud</p>
+                      <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#ffffff;font-style:italic;">The people, ideas, and connections founders are building right now.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:7px 15px;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;text-align:left;">
+                {% for paragraph in hook_paragraphs %}
+                <p style="margin:0 0 12px 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;">{{ paragraph }}</p>
+                {% endfor %}
+              </td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:7px 15px;font-family:Arial, Helvetica, sans-serif;text-align:left;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:20pt;line-height:25pt;color:#000000;">From the Blog</p>
+              </td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:7px 15px 14px 15px;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:18pt;color:#000000;text-align:left;">
+                {% for post in posts %}
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:18pt;">
+                  <a href="{{ post.url }}" target="_blank" style="color:#2828da;text-decoration:underline;font-weight:bold;font-size:12pt;">{{ post.title }}</a>
+                </p>
+                <p style="margin:4px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:18pt;color:#000000;">
+                  {{ post.blurb }}
+                  <br>
+                  <a href="{{ post.url }}" target="_blank" style="color:#2828da;text-decoration:underline;">{{ post.cta }}</a>
+                </p>
+                {% if not loop.last %}
+                <p style="margin:0;line-height:18pt;font-size:12pt;">&nbsp;</p>
+                {% endif %}
+                {% endfor %}
+              </td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:7px 15px 0 15px;font-family:Arial, Helvetica, sans-serif;text-align:left;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:20pt;line-height:25pt;color:#000000;">The Matchboard</p>
+              </td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:0 15px 7px 15px;font-family:Arial, Helvetica, sans-serif;text-align:left;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;">Some highlighted ventures looking for a partner this week.</p>
+              </td>
+            </tr>
+            {% for founder in founders %}
+            {% if not loop.first %}
+            <tr>
+              <td style="padding:8px 7px;">
+                <table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="70%" style="width:70%;margin:0 auto;">
+                  <tr>
+                    <td style="border-top:2px dotted #ffdad9;font-size:0;line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td class="paddingcomp" style="padding:7px 30px;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;text-align:left;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;">
+                  <strong>{{ founder.name }} &mdash; {{ founder.label }}</strong>
+                </p>
+                {% if founder.location %}
+                <p style="margin:2px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:11pt;line-height:18pt;color:#1c1c1c;">{{ founder.location }}</p>
+                {% endif %}
+                <p style="margin:4px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;">
+                  <strong>Looking for:</strong> {{ founder.looking_for }}
+                </p>
+                <p style="margin:4px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;color:#000000;">{{ founder.bio }}</p>
+                <p style="margin:4px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;">
+                  <a href="{{ founder.url }}" target="_blank" style="color:#2828da;text-decoration:underline;font-weight:bold;">{{ founder.cta }}</a>
+                </p>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr>
+              <td class="paddingcomp" style="padding:7px 30px;font-family:Arial, Helvetica, sans-serif;text-align:center;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;text-align:center;">
+                  <a href="{{ directory_url }}" target="_blank" style="color:#2828da;text-decoration:underline;">...and thousands more...</a>
+                </p>
+                <p style="margin:6px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:10pt;line-height:19pt;text-align:center;font-style:italic;color:#000000;">
+                  Want to be featured in an upcoming issue? Complete your profile and send us a note.<br>
+                  <a href="{{ your_profile_url }}" target="_blank" style="color:#2828da;text-decoration:underline;font-style:italic;">View Your Profile</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="height:25px;font-size:5px;line-height:25px;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td class="paddingcomp" style="padding:7px 15px;font-family:Arial, Helvetica, sans-serif;color:#000000;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:11pt;line-height:19pt;text-align:center;color:#000000;">
+                  <em>&ldquo;{{ quote_text }}&rdquo;</em>
+                </p>
+                <p style="margin:4px 0 16px 0;font-family:Arial, Helvetica, sans-serif;font-size:11pt;line-height:19pt;text-align:center;color:#000000;">-{{ quote_attribution }}</p>
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;text-align:left;color:#000000;">You're one of {{ community_count }} founders building with FounderCloud.</p>
+                <p style="margin:12px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;text-align:left;color:#000000;">The future is bright - let's build it together!</p>
+                <p style="margin:12px 0 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;text-align:left;color:#000000;">Regards,</p>
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:12pt;line-height:19pt;text-align:left;color:#000000;">Tom</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="left" style="padding:0 15px 7px 8px;">
+                <img src="{{ pages_base_url }}/assets/signature.png" width="150" alt="Tom" style="display:block;width:150px;max-width:150px;height:auto;border:0;">
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="#dcdcdc" style="background-color:#dcdcdc;height:25px;font-size:5px;line-height:25px;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td bgcolor="#dcdcdc" align="center" style="background-color:#dcdcdc;padding:7px 15px 0 15px;">
+                <table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr>
+                    <td style="padding:0 9px;">
+                      <a href="{{ linkedin_url }}" target="_blank" style="text-decoration:none;">
+                        <img src="{{ pages_base_url }}/assets/linkedin.png" width="35" height="35" alt="LinkedIn" style="display:block;width:35px;height:35px;border:0;">
+                      </a>
+                    </td>
+                    <td style="padding:0 9px;">
+                      <a href="{{ instagram_url }}" target="_blank" style="text-decoration:none;">
+                        <img src="{{ pages_base_url }}/assets/instagram.png" width="35" height="35" alt="Instagram" style="display:block;width:35px;height:35px;border:0;">
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="#dcdcdc" style="background-color:#dcdcdc;padding:10px 15px 7px 15px;font-family:Arial, Helvetica, sans-serif;text-align:center;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:10pt;line-height:17pt;color:#848484;font-weight:bold;text-align:center;">
+                  FounderCloud User:&nbsp;$[FNAME|Founder]$,&nbsp;$[EMAIL]$<br>
+                  <a href="{{ your_profile_url }}" target="_blank" style="color:#848484;text-decoration:underline;font-weight:bold;">Your User Profile</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="#dcdcdc" style="background-color:#dcdcdc;padding:0 15px 18px 15px;font-family:Arial, Helvetica, sans-serif;text-align:center;">
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:10pt;line-height:17pt;color:#848484;text-align:center;">
+                  Want to change how you receive these emails?<br>
+                  you can <a href="$[LI:UPDATEPROFILE]$" target="_blank" style="color:#848484;text-decoration:underline;">update your preferences</a>
+                  or <a href="$[LI:UNSUBSCRIBE]$" target="_blank" style="color:#848484;text-decoration:underline;">unsubscribe from this list.</a>
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>

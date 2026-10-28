@@ -1,0 +1,18 @@
+# Static Build Sheet settings. Weekly copy lives in content/YYYY-MM-DD.yml.
+pages_base_url: https://tgmarlow.github.io/foundercloud-newsletter
+site_url: https://www.foundercloud.com/
+blog_url_template: https://www.foundercloud.com/blog/post/{slug}
+profile_url_template: https://www.foundercloud.com/profile/{id}
+directory_url: https://www.foundercloud.com/find-a-co-founder
+your_profile_url: https://www.foundercloud.com/profile
+# Confirmed on the public site footer.
+linkedin_url: https://www.linkedin.com/company/14852139/
+# The Sep 12 issue has an Instagram icon, but the redacted HTML does not keep
+# the real destination, and foundercloud.com publishes Facebook + LinkedIn only.
+# The icon stays in the layout and points at the site until you set the real URL.
+instagram_url: https://www.foundercloud.com/
+graphql_url: https://api.starthawk.io/
+from_name: Tom at FounderCloud
+posts_per_issue: 2
+founders_per_issue: 4
+founders_minimum: 3
