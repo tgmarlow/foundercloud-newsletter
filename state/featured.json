@@ -40,6 +40,16 @@
       "slug": "the-36-month-pop-up-why-you-should-build-disposable-startups",
       "issue": "2026-10-28",
       "title": "The 36-Month Pop-Up: Why You Should Build \"Disposable\" Startups"
+    },
+    {
+      "slug": "air-traffic-control-landing-customer-requests-without-crashing-the-roadmap",
+      "issue": "2026-11-02",
+      "title": "Air Traffic Control: Landing Customer Requests Without Crashing the Roadmap"
+    },
+    {
+      "slug": "the-dispatch-desk-who-owns-the-agents-when-everyone-wants-them-now",
+      "issue": "2026-11-02",
+      "title": "The Dispatch Desk: Who Owns the Agents Once Everyone Needs Them?"
     }
   ],
   "founders": [
@@ -62,6 +72,26 @@
       "id": "cmv19nxpy0bhd06863wgsbwin",
       "issue": "2026-10-28",
       "name": "Ren"
+    },
+    {
+      "id": "cmuxc9ywf0lpg06665gfnqgnn",
+      "issue": "2026-11-02",
+      "name": "Marvin"
+    },
+    {
+      "id": "cmuwn7lyb09p50666msxoe62k",
+      "issue": "2026-11-02",
+      "name": "Tony"
+    },
+    {
+      "id": "cmuv1yb3x07zk060510vqc46u",
+      "issue": "2026-11-02",
+      "name": "Asada"
+    },
+    {
+      "id": "cmusbyu3x03za0690wlb82lbc",
+      "issue": "2026-11-02",
+      "name": "Ahmed"
     }
   ],
   "issues": {
@@ -81,6 +111,24 @@
         "cmv19nxpy0bhd06863wgsbwin"
       ],
       "pages_path": "2026-10-28.html",
+      "needs_edit": true
+    },
+    "2026-11-02": {
+      "subject": "[EDIT ME] Build Sheet: Air Traffic Control",
+      "preheader": "[EDIT ME] This week's essays: Air Traffic Control, and The Dispatch Desk.",
+      "community_count_raw": 32948,
+      "community_count_display": "32,500+",
+      "posts": [
+        "air-traffic-control-landing-customer-requests-without-crashing-the-roadmap",
+        "the-dispatch-desk-who-owns-the-agents-when-everyone-wants-them-now"
+      ],
+      "founders": [
+        "cmuxc9ywf0lpg06665gfnqgnn",
+        "cmuwn7lyb09p50666msxoe62k",
+        "cmuv1yb3x07zk060510vqc46u",
+        "cmusbyu3x03za0690wlb82lbc"
+      ],
+      "pages_path": "2026-11-02.html",
       "needs_edit": true
     }
   }
