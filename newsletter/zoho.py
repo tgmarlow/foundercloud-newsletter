@@ -18,8 +18,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from newsletter.build import DATE_RE, load_state, save_state
+from newsletter.build import DATE_RE, load_override, load_state, save_state
 from newsletter.config import ROOT
+from newsletter.text import clean_text
 
 TOKEN_URL = "https://accounts.zoho.eu/oauth/v2/token"
 CAMPAIGNS_BASE = "https://campaigns.zoho.eu/api/v1.1"
@@ -40,6 +41,9 @@ REQUIRED_SECRETS = (
     "ZOHO_REFRESH_TOKEN",
     "ZOHO_LIST_KEY",
     "ZOHO_FROM_EMAIL",
+    # Accounts on the updated topic model reject createCampaign with code 903
+    # ("Mandatory fields are not found") when topicId is absent.
+    "ZOHO_TOPIC_ID",
 )
 
 _SECRET_RE = re.compile(
@@ -65,6 +69,16 @@ def redact(text: str) -> str:
     return _SECRET_RE.sub(r"\1\2REDACTED", text)
 
 
+def issue_preheader(root: Path, issue_date: str) -> str:
+    """Inbox preview from content/YYYY-MM-DD.yml.
+
+    Zoho does not copy the hidden preheader div in the imported HTML into the
+    campaign's preheader field, so createCampaign has to receive it directly.
+    """
+    override = load_override(root / "content" / f"{issue_date}.yml")
+    return clean_text(override.get("preheader") or "")
+
+
 def campaign_form(
     *,
     issue_date: str,
@@ -72,9 +86,20 @@ def campaign_form(
     from_email: str,
     list_key: str,
     content_url: str,
+    topic_id: str,
+    preheader: str = "",
     from_name: str = "Tom at FounderCloud",
-    topic_id: str = "",
 ) -> dict[str, str]:
+    topic = (topic_id or "").strip()
+    if not topic:
+        raise RuntimeError(
+            "ZOHO_TOPIC_ID is empty. createCampaign requires topicId on this account "
+            "(Zoho error 903, mandatory fields are not found)."
+        )
+    # Documented v1.1 names: topicId, subject, from_email, from_name,
+    # campaignname, list_details, content_url, resfmt.
+    # `preheader` is the campaign-record field (the inbox preview). It is not
+    # in the short help table, and the HTML import leaves it blank.
     fields = {
         "resfmt": "JSON",
         "campaignname": f"Build Sheet {issue_date}",
@@ -83,10 +108,11 @@ def campaign_form(
         "from_name": from_name,
         "list_details": json.dumps({list_key: []}, separators=(",", ":")),
         "content_url": content_url,
+        "topicId": topic,
     }
-    topic = (topic_id or "").strip()
-    if topic:
-        fields["topicId"] = topic
+    preview = (preheader or "").strip()
+    if preview:
+        fields["preheader"] = preview
     return fields
 
 
@@ -232,6 +258,41 @@ def campaign_details(http: ZohoHttp, token: str, campaign_key: str) -> dict:
     return parse_json(body)
 
 
+def apply_saved_campaign_keys(saved_path: Path, current_path: Path) -> bool:
+    """Copy campaign_key values from a saved state file onto the current one.
+
+    Used when the key commit conflicts with a newer main. Only those keys move,
+    so a concurrent render's posts and founders stay intact.
+    """
+    saved = json.loads(saved_path.read_text(encoding="utf-8"))
+    current = json.loads(current_path.read_text(encoding="utf-8"))
+    if not isinstance(saved, dict) or not isinstance(current, dict):
+        raise RuntimeError("state files must be JSON objects")
+    issues = current.setdefault("issues", {})
+    if not isinstance(issues, dict):
+        raise RuntimeError("state issues must be a JSON object")
+    changed = False
+    for date, record in (saved.get("issues") or {}).items():
+        if not isinstance(record, dict):
+            continue
+        key = str(record.get("campaign_key") or "").strip()
+        if not key:
+            continue
+        slot = issues.get(date)
+        if not isinstance(slot, dict):
+            slot = {}
+            issues[date] = slot
+        if slot.get("campaign_key") != key:
+            slot["campaign_key"] = key
+            changed = True
+    if changed:
+        current_path.write_text(
+            json.dumps(current, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    return changed
+
+
 def record_campaign_key(root: Path, issue_date: str, campaign_key: str) -> None:
     path = root / "state" / "featured.json"
     state = load_state(path)
@@ -275,6 +336,7 @@ def create_unsent_draft(env: dict, root: Path, http: ZohoHttp | None = None) -> 
     http = http or ZohoHttp()
     html = wait_for_page(content_url, issue_date)
     subject = subject_from_html(html)
+    preheader = issue_preheader(root, issue_date)
     token = refresh_access_token(http, env)
     fields = campaign_form(
         issue_date=issue_date,
@@ -283,7 +345,8 @@ def create_unsent_draft(env: dict, root: Path, http: ZohoHttp | None = None) -> 
         list_key=env["ZOHO_LIST_KEY"].strip(),
         content_url=content_url,
         from_name=env.get("ZOHO_FROM_NAME") or "Tom at FounderCloud",
-        topic_id=env.get("ZOHO_TOPIC_ID") or "",
+        topic_id=env["ZOHO_TOPIC_ID"],
+        preheader=preheader,
     )
     # Body is form-encoded by ZohoHttp.post_form. The URL itself has no query.
     campaign_key = create_campaign(http, token, fields)
@@ -296,6 +359,7 @@ def create_unsent_draft(env: dict, root: Path, http: ZohoHttp | None = None) -> 
         "campaign_key": verified,
         "status": status_label(details),
         "subject": subject,
+        "preheader": preheader,
         "content_url": content_url,
     }
 
@@ -338,6 +402,7 @@ def main(argv: list[str] | None = None) -> int:
     if result.get("status"):
         print(f"campaign_status={result['status']}")
     print(f"subject={result.get('subject', '')}")
+    print(f"preheader={result.get('preheader', '')}")
     print(f"content_url={result['content_url']}")
     print("Draft only. sendcampaign was not called.")
     return 0

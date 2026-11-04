@@ -41,13 +41,13 @@ Create an EU server-based OAuth client (Zoho API Console, data center **EU**) wi
 | `ZOHO_REFRESH_TOKEN` | yes | `https://accounts.zoho.eu/oauth/v2/token` |
 | `ZOHO_LIST_KEY` | yes | `list_details` key, value `[]` |
 | `ZOHO_FROM_EMAIL` | yes | verified sender, today `weeklyupdate@starthawk.io` |
-| `ZOHO_TOPIC_ID` | no | sent only when set (required by Zoho if the account uses topic management) |
+| `ZOHO_TOPIC_ID` | yes | `createCampaign` `topicId`. This account returns Zoho error 903 without it |
 
 `from_name` is `Tom at FounderCloud`. The from address has to be a verified Zoho sender or `createCampaign` will reject the draft.
 
 If any required secret is missing, the Zoho job prints a skip message and exits 0. The HTML is still published.
 
-Token refresh and `createCampaign` send parameters in a form-encoded **body** (`resfmt=JSON`). `createCampaign` does not send the email. A later run for the same date sees `campaign_key` and does not create a second draft. Zoho does not re-import HTML into that draft: edit the draft in Zoho, or delete `campaign_key` for that date and re-run to make a new unsent draft.
+Token refresh and `createCampaign` send parameters in a form-encoded **body** (`resfmt=JSON`). The body includes `topicId` from `ZOHO_TOPIC_ID` and `preheader` from `content/YYYY-MM-DD.yml`. Zoho's HTML import does not fill the campaign preheader, so that field has to be sent on its own. `createCampaign` does not send the email. A later run for the same date sees `campaign_key` and does not create a second draft. Zoho does not re-import HTML into that draft: edit the draft in Zoho, or delete `campaign_key` for that date and re-run to make a new unsent draft.
 
 ## Edit a week before it sends
 

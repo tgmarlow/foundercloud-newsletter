@@ -7,10 +7,7 @@ directory_url: https://www.foundercloud.com/find-a-co-founder
 your_profile_url: https://www.foundercloud.com/profile
 # Confirmed on the public site footer.
 linkedin_url: https://www.linkedin.com/company/14852139/
-# The Sep 12 issue has an Instagram icon, but the redacted HTML does not keep
-# the real destination, and foundercloud.com publishes Facebook + LinkedIn only.
-# The icon stays in the layout and points at the site until you set the real URL.
-instagram_url: https://www.foundercloud.com/
+instagram_url: https://www.instagram.com/foundercloud/
 graphql_url: https://api.starthawk.io/
 from_name: Tom at FounderCloud
 posts_per_issue: 2

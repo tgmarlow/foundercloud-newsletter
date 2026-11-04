@@ -27,6 +27,7 @@ from newsletter.sources import iter_pages
 from newsletter.text import clean_text, format_community_count, trim
 from newsletter.zoho import (
     ZohoHttp,
+    apply_saved_campaign_keys,
     assert_safe_endpoint,
     campaign_form,
     create_unsent_draft,
@@ -214,13 +215,17 @@ class RenderTests(unittest.TestCase):
                 "$[LI:UPDATEPROFILE]$",
                 "$[LI:UNSUBSCRIBE]$",
                 "fresh-alpha",
-                "https://tgmarlow.github.io/foundercloud-newsletter/assets/foundercloud-logo.png",
+                'class="wordmark"',
+                ">FounderCloud</a>",
+                "https://www.instagram.com/foundercloud/",
                 'content="2026-10-28"',
             ):
                 self.assertIn(snippet, html, snippet)
             self.assertNotIn("open.gif", html)
             self.assertNotIn("maillist-manage", html)
             self.assertNotIn("sendcampaign", html)
+            self.assertNotIn("STARTHAWK", html)
+            self.assertNotIn("foundercloud-logo.png", html)
             self.assertNotIn(HISTORICAL_POSTS[0]["slug"], html)
             self.assertTrue(summary["needs_edit"])
             self.assertEqual(summary["pages_url"], "https://tgmarlow.github.io/foundercloud-newsletter/2026-10-28.html")
@@ -279,31 +284,35 @@ class ZohoTests(unittest.TestCase):
             "ZOHO_REFRESH_TOKEN",
             "ZOHO_LIST_KEY",
             "ZOHO_FROM_EMAIL",
+            "ZOHO_TOPIC_ID",
         ])
 
-    def test_form_is_body_encoded_and_omits_empty_topic(self):
+    def test_form_is_body_encoded_with_topic_and_preheader(self):
         fields = campaign_form(
             issue_date="2026-10-28",
             subject="Build Sheet: Hello",
             from_email="weeklyupdate@starthawk.io",
             list_key="list123",
             content_url="https://tgmarlow.github.io/foundercloud-newsletter/2026-10-28.html",
+            topic_id="topic-9",
+            preheader="Plus: a second line.",
         )
         encoded = encode_form(fields).decode()
         self.assertNotIn("sendcampaign", encoded)
         parsed = urllib.parse.parse_qs(encoded)
         self.assertEqual(json.loads(parsed["list_details"][0]), {"list123": []})
         self.assertEqual(parsed["campaignname"][0], "Build Sheet 2026-10-28")
-        self.assertNotIn("topicId", parsed)
-        with_topic = campaign_form(
-            issue_date="2026-10-28",
-            subject="S",
-            from_email="a@b.c",
-            list_key="list123",
-            content_url="https://example.com/x.html",
-            topic_id="topic-9",
-        )
-        self.assertEqual(urllib.parse.parse_qs(encode_form(with_topic).decode())["topicId"][0], "topic-9")
+        self.assertEqual(parsed["topicId"][0], "topic-9")
+        self.assertEqual(parsed["preheader"][0], "Plus: a second line.")
+        with self.assertRaises(RuntimeError):
+            campaign_form(
+                issue_date="2026-10-28",
+                subject="S",
+                from_email="a@b.c",
+                list_key="list123",
+                content_url="https://example.com/x.html",
+                topic_id="  ",
+            )
 
     def test_refuses_send_endpoints(self):
         for path in ("sendcampaign", "schedulecampaign", "sendtestmail"):
@@ -327,10 +336,16 @@ class ZohoTests(unittest.TestCase):
                 "ZOHO_REFRESH_TOKEN": "refresh",
                 "ZOHO_LIST_KEY": "list123",
                 "ZOHO_FROM_EMAIL": "weeklyupdate@starthawk.io",
-                "ZOHO_TOPIC_ID": "",
+                "ZOHO_TOPIC_ID": "topic-9",
                 "ISSUE_DATE": "2026-10-28",
                 "CONTENT_URL": "https://tgmarlow.github.io/foundercloud-newsletter/2026-10-28.html",
             }
+            content = root / "content"
+            content.mkdir()
+            (content / "2026-10-28.yml").write_text(
+                'preheader: "Plus: a second line."\n',
+                encoding="utf-8",
+            )
             http = FakeZoho()
             html = (
                 "<title>[EDIT ME] Build Sheet: Hello</title>"
@@ -346,6 +361,9 @@ class ZohoTests(unittest.TestCase):
             self.assertIn("getcampaigndetails", http.gets[0])
             self.assertEqual(http.headers["Authorization"], "Zoho-oauthtoken token-value")
             self.assertNotIn("access_token", json.dumps(http.fields))
+            self.assertEqual(http.fields["topicId"], "topic-9")
+            self.assertEqual(http.fields["preheader"], "Plus: a second line.")
+            self.assertEqual(result["preheader"], "Plus: a second line.")
             saved = json.loads((root / "state" / "featured.json").read_text(encoding="utf-8"))
             self.assertEqual(saved["issues"]["2026-10-28"]["campaign_key"], "999")
 
@@ -354,6 +372,26 @@ class ZohoTests(unittest.TestCase):
                 again = create_unsent_draft(env, root, http=http)
             self.assertTrue(again["already_exists"])
             self.assertEqual(http.posts, [])
+
+    def test_reapply_campaign_key_keeps_newer_render(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            saved = root / "saved.json"
+            current = root / "current.json"
+            saved.write_text(
+                json.dumps({"issues": {"2026-11-02": {"campaign_key": "abc", "posts": ["old"]}}}),
+                encoding="utf-8",
+            )
+            current.write_text(
+                json.dumps({"issues": {"2026-11-02": {"posts": ["new"], "needs_edit": False}}}),
+                encoding="utf-8",
+            )
+            self.assertTrue(apply_saved_campaign_keys(saved, current))
+            merged = json.loads(current.read_text(encoding="utf-8"))
+            issue = merged["issues"]["2026-11-02"]
+            self.assertEqual(issue["campaign_key"], "abc")
+            self.assertEqual(issue["posts"], ["new"])
+            self.assertFalse(apply_saved_campaign_keys(saved, current))
 
 
 if __name__ == "__main__":

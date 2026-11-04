@@ -136,6 +136,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Create unsent Zoho draft
+        id: zoho
         env:
           ZOHO_CLIENT_ID: ${{ secrets.ZOHO_CLIENT_ID }}
           ZOHO_CLIENT_SECRET: ${{ secrets.ZOHO_CLIENT_SECRET }}
@@ -148,6 +149,7 @@ jobs:
         run: python scripts/zoho_draft.py
 
       - name: Record campaign key
+        if: always() && (steps.zoho.outcome == 'success' || steps.zoho.outcome == 'failure')
         run: |
           git config user.name "foundercloud-newsletter"
           git config user.email "weeklyupdate@starthawk.io"
@@ -156,5 +158,51 @@ jobs:
             echo "No campaign key to record."
           else
             git commit -m "Record Zoho draft key for ${{ needs.build.outputs.issue_date }}"
-            git push origin HEAD:main
+            cp state/featured.json /tmp/featured-with-key.json
+            branch="main"
+            # Same race as the render push: main can move before this push.
+            # On a conflict, replay only the new campaign_key values onto the
+            # latest state file so a re-run does not create a second draft.
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              refspec="+refs/heads/${branch}:refs/remotes/origin/${branch}"
+              if [ -f "$(git rev-parse --git-path shallow)" ]; then
+                git fetch --unshallow origin "$refspec"
+              else
+                git fetch origin "$refspec"
+              fi
+              tip="$(git rev-parse "refs/remotes/origin/${branch}")"
+              if ! git rebase "$tip"; then
+                rebase_dir="$(git rev-parse --git-path rebase-merge)"
+                apply_dir="$(git rev-parse --git-path rebase-apply)"
+                if [ ! -d "$rebase_dir" ] && [ ! -d "$apply_dir" ]; then
+                  echo "Rebase of the campaign key commit failed."
+                  exit 1
+                fi
+                echo "Campaign key commit conflicted; reapplying keys onto latest main."
+                git rebase --abort
+                git reset --hard "$tip"
+                python -c 'from pathlib import Path; from newsletter.zoho import apply_saved_campaign_keys; apply_saved_campaign_keys(Path("/tmp/featured-with-key.json"), Path("state/featured.json"))'
+                git add state/featured.json
+                if git diff --cached --quiet; then
+                  echo "Campaign key already on latest main."
+                  pushed=1
+                  break
+                fi
+                git commit -m "Record Zoho draft key for ${{ needs.build.outputs.issue_date }}"
+              fi
+              if git push origin "HEAD:${branch}"; then
+                pushed=1
+                break
+              fi
+              echo "Push rejected on attempt ${attempt}; retrying."
+            done
+            if [ "$pushed" != 1 ]; then
+              echo "Failed to push the campaign key to ${branch}."
+              exit 1
+            fi
+          fi
+          if [ "${{ steps.zoho.outcome }}" != "success" ]; then
+            echo "Zoho draft step failed."
+            exit 1
           fi
