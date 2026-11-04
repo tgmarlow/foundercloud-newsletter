@@ -53,7 +53,47 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Render Build Sheet ${{ steps.render.outputs.issue_date }}"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            branch="${GITHUB_REF_NAME}"
+            issue_date="${{ steps.render.outputs.issue_date }}"
+            # Checkout is the SHA from when the run was queued, so main may
+            # have moved. Rebase onto the remote branch and retry the push.
+            # Generated files can conflict with a newer render; rebuild those
+            # on the latest commit instead of failing the run.
+            for attempt in 1 2 3 4 5; do
+              refspec="+refs/heads/${branch}:refs/remotes/origin/${branch}"
+              if [ -f "$(git rev-parse --git-path shallow)" ]; then
+                git fetch --unshallow origin "$refspec"
+              else
+                git fetch origin "$refspec"
+              fi
+              tip="$(git rev-parse "refs/remotes/origin/${branch}")"
+              if git rebase "$tip"; then
+                :
+              else
+                rebase_dir="$(git rev-parse --git-path rebase-merge)"
+                apply_dir="$(git rev-parse --git-path rebase-apply)"
+                if [ ! -d "$rebase_dir" ] && [ ! -d "$apply_dir" ]; then
+                  echo "Rebase onto ${branch} failed."
+                  exit 1
+                fi
+                echo "Rendered files conflicted with ${branch}; re-rendering on the latest commit."
+                git rebase --abort
+                git reset --hard "$tip"
+                python scripts/build_issue.py --date "$issue_date"
+                git add issues state
+                if git diff --cached --quiet; then
+                  echo "No changes to commit after re-render."
+                  exit 0
+                fi
+                git commit -m "Render Build Sheet ${issue_date}"
+              fi
+              if git push origin "HEAD:${branch}"; then
+                exit 0
+              fi
+              echo "Push rejected on attempt ${attempt}; retrying."
+            done
+            echo "Failed to push rendered issue to ${branch}."
+            exit 1
           fi
 
       - name: Setup Pages
