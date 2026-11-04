@@ -114,8 +114,8 @@
       "needs_edit": true
     },
     "2026-11-02": {
-      "subject": "[EDIT ME] Build Sheet: Air Traffic Control",
-      "preheader": "[EDIT ME] This week's essays: Air Traffic Control, and The Dispatch Desk.",
+      "subject": "Build Sheet: Run the work, don't do all of it",
+      "preheader": "Plus: who owns your AI agents, and one-page versions of both posts are now on Instagram.",
       "community_count_raw": 32948,
       "community_count_display": "32,500+",
       "posts": [
@@ -129,7 +129,7 @@
         "cmusbyu3x03za0690wlb82lbc"
       ],
       "pages_path": "2026-11-02.html",
-      "needs_edit": true
+      "needs_edit": false
     }
   }
 }
