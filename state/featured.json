@@ -50,6 +50,16 @@
       "slug": "the-dispatch-desk-who-owns-the-agents-when-everyone-wants-them-now",
       "issue": "2026-11-02",
       "title": "The Dispatch Desk: Who Owns the Agents Once Everyone Needs Them?"
+    },
+    {
+      "slug": "dead-reckoning-making-good-calls-before-the-data-is-clear",
+      "issue": "2026-11-09",
+      "title": "Dead Reckoning: Making Good Calls Before the Data Is Clear"
+    },
+    {
+      "slug": "the-night-shift-what-to-hand-your-ai-agents-while-you-sleep",
+      "issue": "2026-11-09",
+      "title": "The Night Shift: What to Hand Your AI Agents While You Sleep"
     }
   ],
   "founders": [
@@ -92,6 +102,26 @@
       "id": "cmusbyu3x03za0690wlb82lbc",
       "issue": "2026-11-02",
       "name": "Ahmed"
+    },
+    {
+      "id": "cmuqptz72052u0657r3w57220",
+      "issue": "2026-11-09",
+      "name": "Ryan"
+    },
+    {
+      "id": "cmuox6ibs0mfz0653x22x4802",
+      "issue": "2026-11-09",
+      "name": "Mohamed"
+    },
+    {
+      "id": "cmunxo7jx08sa06535gkr1ap9",
+      "issue": "2026-11-09",
+      "name": "Maksim"
+    },
+    {
+      "id": "cmunxgxcg08o40653slvua76g",
+      "issue": "2026-11-09",
+      "name": "David"
     }
   ],
   "issues": {
@@ -131,6 +161,24 @@
       "pages_path": "2026-11-02.html",
       "needs_edit": false,
       "campaign_key": "3z7daf6398236b9ca478fd78f9a61a4924feb0a5dc66ec7ea8b94ffd16e81f48cf"
+    },
+    "2026-11-09": {
+      "subject": "[EDIT ME] Build Sheet: Dead Reckoning",
+      "preheader": "[EDIT ME] This week's essays: Dead Reckoning, and The Night Shift.",
+      "community_count_raw": 32947,
+      "community_count_display": "32,500+",
+      "posts": [
+        "dead-reckoning-making-good-calls-before-the-data-is-clear",
+        "the-night-shift-what-to-hand-your-ai-agents-while-you-sleep"
+      ],
+      "founders": [
+        "cmuqptz72052u0657r3w57220",
+        "cmuox6ibs0mfz0653x22x4802",
+        "cmunxo7jx08sa06535gkr1ap9",
+        "cmunxgxcg08o40653slvua76g"
+      ],
+      "pages_path": "2026-11-09.html",
+      "needs_edit": true
     }
   }
 }
