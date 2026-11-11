@@ -70,7 +70,7 @@ quote:
 
 To keep a post or founder out of future issues, add them to `state/featured.json` (`posts[].slug` or `founders[].id`) before the run. Slugs already sent in the May 4, Jul 8, and Sep 12 issues are seeded in code. Founder ids from those issues were not in the redacted mail, so they are not seeded.
 
-Re-running the same date replaces that date's picks and keeps an existing `campaign_key`.
+Re-running the same date keeps that date's posts and founders and refreshes the subject, preheader, hook, and quote from `content/YYYY-MM-DD.yml`. A `campaign_key` recorded for finished copy is kept, so Zoho is not called again. A key recorded while the copy was still `[EDIT ME]` is moved to `superseded_campaign_keys` and a new unsent draft is created. The old draft is not sent or deleted.
 
 ## Local render
 

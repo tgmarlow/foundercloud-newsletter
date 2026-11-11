@@ -153,6 +153,34 @@ def apply_editorial(posts: list[dict], override: dict, count_display: str) -> di
     }
 
 
+def _recorded_ids(values) -> list[str]:
+    ids: list[str] = []
+    for value in values or []:
+        ident = str(value or "").strip()
+        if ident and ident not in ids:
+            ids.append(ident)
+    return ids
+
+
+def _load_recorded(fetch_page, page_size: int, max_pages: int, id_key: str, wanted: list[str]) -> dict[str, dict]:
+    """Page the public API until every recorded id is found."""
+    needed = set(wanted)
+    rows = _collect_pages(
+        fetch_page,
+        page_size=page_size,
+        max_pages=max_pages,
+        id_key=id_key,
+        enough=lambda batch: needed.issubset({str(row.get(id_key) or "") for row in batch}),
+    )
+    found = {str(row.get(id_key) or ""): row for row in rows}
+    missing = [ident for ident in wanted if ident not in found]
+    if missing:
+        raise RuntimeError(
+            f"Could not reload recorded {id_key}s for this issue: {', '.join(missing)}"
+        )
+    return found
+
+
 def _remember(items: list[dict], issue: str, key: str, fresh: list[dict]) -> list[dict]:
     kept = [item for item in items if item.get("issue") != issue]
     seen = {item.get(key) for item in kept}
@@ -172,47 +200,77 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
     state_path = root / "state" / "featured.json"
     state = load_state(state_path)
     previous_issue = (state.get("issues") or {}).get(date) or {}
+    recorded_posts = _recorded_ids(previous_issue.get("posts"))
+    recorded_founders = _recorded_ids(previous_issue.get("founders"))
 
-    used_posts = used_slugs(state, date)
-    articles = _collect_pages(
-        lambda size, skip: client.blog_page(size, skip),
-        page_size=20,
-        max_pages=10,
-        id_key="slug",
-        enough=lambda rows: sum(
-            1 for row in rows if row.get("slug") not in used_posts and _usable_post(row)
+    # An existing issue keeps the posts and founders already recorded for that
+    # date. Selecting again would treat those picks as unused and could replace
+    # them with anything newer. Copy still comes from content/YYYY-MM-DD.yml.
+    if recorded_posts and recorded_founders:
+        posts_by_slug = _load_recorded(
+            lambda size, skip: client.blog_page(size, skip),
+            page_size=20,
+            max_pages=15,
+            id_key="slug",
+            wanted=recorded_posts,
         )
-        >= int(config["posts_per_issue"]),
-    )
-    posts_raw, warnings = select_posts(
-        articles,
-        used_posts,
-        int(config["posts_per_issue"]),
-    )
-    posts = [format_post(article, config["blog_url_template"]) for article in posts_raw]
+        founders_by_id = _load_recorded(
+            lambda size, skip: client.founder_page(size, skip),
+            page_size=15,
+            max_pages=40,
+            id_key="id",
+            wanted=recorded_founders,
+        )
+        posts = [
+            format_post(posts_by_slug[slug], config["blog_url_template"])
+            for slug in recorded_posts
+        ]
+        founders = [
+            format_founder(founders_by_id[ident], config["profile_url_template"])
+            for ident in recorded_founders
+        ]
+        warnings: list[str] = []
+    else:
+        used_posts = used_slugs(state, date)
+        articles = _collect_pages(
+            lambda size, skip: client.blog_page(size, skip),
+            page_size=20,
+            max_pages=10,
+            id_key="slug",
+            enough=lambda rows: sum(
+                1 for row in rows if row.get("slug") not in used_posts and _usable_post(row)
+            )
+            >= int(config["posts_per_issue"]),
+        )
+        posts_raw, warnings = select_posts(
+            articles,
+            used_posts,
+            int(config["posts_per_issue"]),
+        )
+        posts = [format_post(article, config["blog_url_template"]) for article in posts_raw]
 
-    used_founders = used_founder_ids(state, date)
-    founders_raw_all = _collect_pages(
-        lambda size, skip: client.founder_page(size, skip),
-        page_size=15,
-        max_pages=12,
-        id_key="id",
-        enough=lambda rows: sum(
-            1
-            for row in rows
-            if row.get("id") not in used_founders and is_complete_founder(row)
+        used_founders = used_founder_ids(state, date)
+        founders_raw_all = _collect_pages(
+            lambda size, skip: client.founder_page(size, skip),
+            page_size=15,
+            max_pages=12,
+            id_key="id",
+            enough=lambda rows: sum(
+                1
+                for row in rows
+                if row.get("id") not in used_founders and is_complete_founder(row)
+            )
+            >= int(config["founders_per_issue"]),
         )
-        >= int(config["founders_per_issue"]),
-    )
-    founders_raw = select_founders(
-        founders_raw_all,
-        used_founder_ids(state, date),
-        int(config["founders_per_issue"]),
-        int(config["founders_minimum"]),
-    )
-    founders = [
-        format_founder(founder, config["profile_url_template"]) for founder in founders_raw
-    ]
+        founders_raw = select_founders(
+            founders_raw_all,
+            used_founder_ids(state, date),
+            int(config["founders_per_issue"]),
+            int(config["founders_minimum"]),
+        )
+        founders = [
+            format_founder(founder, config["profile_url_template"]) for founder in founders_raw
+        ]
 
     raw_count = int(client.community_count())
     count_display = format_community_count(raw_count)
@@ -267,8 +325,22 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
         "pages_path": dated_name,
         "needs_edit": editorial["needs_edit"],
     }
-    if previous_issue.get("campaign_key"):
-        issue_record["campaign_key"] = previous_issue["campaign_key"]
+    # A draft created while the copy was still [EDIT ME] must not stay the
+    # recorded key once real copy is rendered. Zoho will not update that draft,
+    # so the next step can create a new unsent one. The old key is kept.
+    superseded = _recorded_ids(previous_issue.get("superseded_campaign_keys"))
+    previous_key = str(previous_issue.get("campaign_key") or "").strip()
+    placeholder = previous_issue.get("needs_edit") is True or str(
+        previous_issue.get("subject") or ""
+    ).startswith(EDIT) or str(previous_issue.get("preheader") or "").startswith(EDIT)
+    if previous_key and placeholder and not editorial["needs_edit"]:
+        if previous_key not in superseded:
+            superseded.append(previous_key)
+        previous_key = ""
+    if superseded:
+        issue_record["superseded_campaign_keys"] = superseded
+    if previous_key:
+        issue_record["campaign_key"] = previous_key
     state.setdefault("issues", {})[date] = issue_record
     save_state(state_path, state)
 

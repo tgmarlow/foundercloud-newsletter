@@ -298,6 +298,12 @@ def record_campaign_key(root: Path, issue_date: str, campaign_key: str) -> None:
     state = load_state(path)
     issues = state.setdefault("issues", {})
     record = issues.get(issue_date) or {"pages_path": f"{issue_date}.html"}
+    previous = str(record.get("campaign_key") or "").strip()
+    if previous and previous != campaign_key:
+        superseded = [str(key) for key in (record.get("superseded_campaign_keys") or []) if str(key).strip()]
+        if previous not in superseded:
+            superseded.append(previous)
+        record["superseded_campaign_keys"] = superseded
     record["campaign_key"] = campaign_key
     issues[issue_date] = record
     save_state(path, state)

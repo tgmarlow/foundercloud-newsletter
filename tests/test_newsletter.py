@@ -33,6 +33,7 @@ from newsletter.zoho import (
     create_unsent_draft,
     encode_form,
     missing_secrets,
+    record_campaign_key,
     subject_from_html,
 )
 
@@ -242,6 +243,70 @@ class RenderTests(unittest.TestCase):
             slugs = [item["slug"] for item in again["posts"]]
             self.assertEqual(slugs.count("fresh-alpha"), 1)
             self.assertIn(HISTORICAL_POSTS[0]["slug"], slugs)
+
+    def test_rerender_keeps_recorded_picks_and_supersedes_placeholder_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "templates").mkdir()
+            shutil.copy(ROOT / "templates" / "build_sheet.html.j2", root / "templates" / "build_sheet.html.j2")
+            shutil.copy(ROOT / "newsletter.config.yml", root / "newsletter.config.yml")
+            client = FakeClient()
+            build_issue(root, "2026-11-09", client)
+            state_path = root / "state" / "featured.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            original_posts = list(state["issues"]["2026-11-09"]["posts"])
+            original_founders = list(state["issues"]["2026-11-09"]["founders"])
+            state["issues"]["2026-11-09"]["campaign_key"] = "placeholder-draft"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            content = root / "content"
+            content.mkdir()
+            (content / "2026-11-09.yml").write_text(
+                'subject: "Build Sheet: Good calls before the data is clear"\n'
+                'preheader: "Plus: what to hand your AI agents overnight."\n'
+                "hook:\n"
+                '  - "A real opening."\n'
+                "quote:\n"
+                '  text: "All models are wrong but some are useful."\n'
+                '  attribution: "George E. P. Box"\n',
+                encoding="utf-8",
+            )
+
+            class NewerFirst(FakeClient):
+                def blog_page(self, first, skip):
+                    rows = super().blog_page(first, skip)
+                    if skip:
+                        return rows
+                    return [_article("brand-new", "Brand New: Essay")] + rows
+
+                def founder_page(self, per_page, skip):
+                    people = super().founder_page(per_page, skip)
+                    if skip:
+                        return people
+                    return [_founder("z", "Zara")] + people
+
+            summary = build_issue(root, "2026-11-09", NewerFirst())
+            again = json.loads(state_path.read_text(encoding="utf-8"))
+            issue = again["issues"]["2026-11-09"]
+            self.assertEqual(issue["posts"], original_posts)
+            self.assertEqual(issue["founders"], original_founders)
+            self.assertEqual(issue["subject"], "Build Sheet: Good calls before the data is clear")
+            self.assertFalse(issue["needs_edit"])
+            self.assertNotIn("campaign_key", issue)
+            self.assertEqual(issue["superseded_campaign_keys"], ["placeholder-draft"])
+            self.assertIn("Good calls before the data is clear", summary["subject"])
+            html = (root / "issues" / "2026-11-09.html").read_text(encoding="utf-8")
+            self.assertIn("A real opening.", html)
+            self.assertIn("fresh-alpha", html)
+            self.assertNotIn("brand-new", html)
+            self.assertNotIn("Zara", html)
+
+            record_campaign_key(root, "2026-11-09", "new-draft")
+            saved = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["issues"]["2026-11-09"]["campaign_key"], "new-draft")
+            self.assertEqual(
+                saved["issues"]["2026-11-09"]["superseded_campaign_keys"],
+                ["placeholder-draft"],
+            )
 
 
 class FakeZoho(ZohoHttp):
