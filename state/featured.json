@@ -163,8 +163,8 @@
       "campaign_key": "3z7daf6398236b9ca478fd78f9a61a4924feb0a5dc66ec7ea8b94ffd16e81f48cf"
     },
     "2026-11-09": {
-      "subject": "[EDIT ME] Build Sheet: Dead Reckoning",
-      "preheader": "[EDIT ME] This week's essays: Dead Reckoning, and The Night Shift.",
+      "subject": "Build Sheet: Good calls before the data is clear",
+      "preheader": "Plus: what to hand your AI agents overnight, and what stays with you.",
       "community_count_raw": 32947,
       "community_count_display": "32,500+",
       "posts": [
@@ -178,8 +178,10 @@
         "cmunxgxcg08o40653slvua76g"
       ],
       "pages_path": "2026-11-09.html",
-      "needs_edit": true,
-      "campaign_key": "3zd7c644acad1f58f133bcf865afa95d9434b5c3c55b34ec7335959e90b55c4164"
+      "needs_edit": false,
+      "superseded_campaign_keys": [
+        "3zd7c644acad1f58f133bcf865afa95d9434b5c3c55b34ec7335959e90b55c4164"
+      ]
     }
   }
 }
