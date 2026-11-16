@@ -60,6 +60,16 @@
       "slug": "the-night-shift-what-to-hand-your-ai-agents-while-you-sleep",
       "issue": "2026-11-09",
       "title": "The Night Shift: What to Hand Your AI Agents While You Sleep"
+    },
+    {
+      "slug": "the-local-guide-your-demo-isnt-ready-until-someone-who-does-the-job-has-used-it",
+      "issue": "2026-11-16",
+      "title": "The Local Guide: Your Demo Isn't Ready Until Someone Who Does the Job Has Used It"
+    },
+    {
+      "slug": "base-camp-first-ten-customers-who-would-miss-you",
+      "issue": "2026-11-16",
+      "title": "Base Camp: First, Ten Customers Who Would Miss You"
     }
   ],
   "founders": [
@@ -122,6 +132,26 @@
       "id": "cmunxgxcg08o40653slvua76g",
       "issue": "2026-11-09",
       "name": "David"
+    },
+    {
+      "id": "cmuk3qozh089g06649rjbim03",
+      "issue": "2026-11-16",
+      "name": "Elkhan"
+    },
+    {
+      "id": "cmujz99x306vt06644bybciu6",
+      "issue": "2026-11-16",
+      "name": "Jafet"
+    },
+    {
+      "id": "cmuh48wx60e8d0677akff0zry",
+      "issue": "2026-11-16",
+      "name": "Jonathan"
+    },
+    {
+      "id": "cmuejrx2q0i660616muos127h",
+      "issue": "2026-11-16",
+      "name": "Suzuki"
     }
   ],
   "issues": {
@@ -183,6 +213,24 @@
         "3zd7c644acad1f58f133bcf865afa95d9434b5c3c55b34ec7335959e90b55c4164"
       ],
       "campaign_key": "3z9f1525e7c62c62fdb80ebb9004be5d0acd8b40586075bd7becadfdeb2ac5d9b8"
+    },
+    "2026-11-16": {
+      "subject": "[EDIT ME] Build Sheet: The Local Guide",
+      "preheader": "[EDIT ME] This week's essays: The Local Guide, and Base Camp.",
+      "community_count_raw": 32941,
+      "community_count_display": "32,500+",
+      "posts": [
+        "the-local-guide-your-demo-isnt-ready-until-someone-who-does-the-job-has-used-it",
+        "base-camp-first-ten-customers-who-would-miss-you"
+      ],
+      "founders": [
+        "cmuk3qozh089g06649rjbim03",
+        "cmujz99x306vt06644bybciu6",
+        "cmuh48wx60e8d0677akff0zry",
+        "cmuejrx2q0i660616muos127h"
+      ],
+      "pages_path": "2026-11-16.html",
+      "needs_edit": true
     }
   }
 }
