@@ -1,11 +1,11 @@
 # The Build Sheet
 
-Weekly newsletter pipeline for [FounderCloud](https://www.foundercloud.com/). Every Monday it renders an issue from the Sep 12, 2026 layout, publishes the HTML on GitHub Pages, and — once Zoho credentials exist — creates an **unsent** draft in Zoho Campaigns (EU). Review, edit, and press Send in Zoho. This repo never calls `sendcampaign`.
+Weekly newsletter pipeline for [FounderCloud](https://www.foundercloud.com/). Every Sunday it renders the following Monday's issue from the Sep 12, 2026 layout, publishes the HTML on GitHub Pages, and — once Zoho credentials exist — creates an **unsent** draft in Zoho Campaigns (EU). Review, edit, and press Send in Zoho. This repo never calls `sendcampaign`.
 
 ## What a run does
 
 1. Pulls the latest approved blog posts from `https://api.starthawk.io/` (`blogArticles`, `orderBy: "date_DESC"`), preferring slugs not already listed in `state/featured.json`.
-2. Picks 3–4 recent public founder profiles (`usersLookingForCofounder`) that have a name, location, Cloudinary photo, at least one skill, and a pitch, and that have not been featured before. Email addresses written into a pitch are removed. Profiles whose public text recruits minors are skipped.
+2. Picks 3–4 recent public founder profiles (`usersLookingForCofounder`) that have a name, location, Cloudinary photo, at least one skill, and a pitch, and that have not been featured before. Email addresses written into a pitch are removed. Profiles whose public text recruits minors are skipped. New selections also skip blurbs that fail `founder_blurb` in `newsletter.config.yml` (too short, mostly lowercase, jokes, personal money asks, spam, or no description of what they bring or are building) and any id in `exclude_founder_ids`. Each skip is printed with the reason. Re-rendering a recorded issue keeps that issue's founders.
 3. Reads the community count from `usersLookingForCofounderConnection` and shows it floored to the nearest 500 with a plus (`32,949` → `32,500+`). The exact count is in an HTML comment and in the state file.
 4. Fills the hook, quote, subject, and preheader from `content/YYYY-MM-DD.yml` when that file exists. Otherwise those spots are marked `[EDIT ME]`.
 5. Writes `issues/YYYY-MM-DD.html` and `issues/latest.html`, commits them with the state file, and deploys the `issues/` folder with GitHub Pages.
@@ -13,8 +13,8 @@ Weekly newsletter pipeline for [FounderCloud](https://www.foundercloud.com/). Ev
 
 ## Trigger
 
-- **Schedule:** Mondays at 13:00 UTC (about 9:00am US Eastern). GitHub may start the job a few minutes late.
-- **Manual:** Actions → Build Sheet → Run workflow. Optional input `date` (`YYYY-MM-DD`, default today UTC). Run it from `main`.
+- **Schedule:** Sundays at 13:00 UTC (about 9:00am US Eastern). The issue date is the following Monday, so a Sunday 2026-11-22 run builds `2026-11-23` and reads `content/2026-11-23.yml`. GitHub may start the job a few minutes late.
+- **Manual:** Actions → Build Sheet → Run workflow. Optional input `date` (`YYYY-MM-DD`). An explicit date is used as given. With no date, Sunday resolves to the following Monday and any other day uses that UTC date. Run it from `main`.
 
 The workflow file is `.github/workflows/newsletter.yml`. A push from `GITHUB_TOKEN` does not start another run.
 
@@ -28,7 +28,7 @@ Pages source cannot be set from this repo. After this workflow is on `main`:
 2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
 3. Save.
 
-The first deploy uses the `github-pages` environment. If GitHub asks you to approve it, approve that environment once. Then run the workflow (or wait for Monday). Until that setting is saved, the render-and-commit job can still succeed and the deploy job will fail.
+The first deploy uses the `github-pages` environment. If GitHub asks you to approve it, approve that environment once. Then run the workflow (or wait for Sunday). Until that setting is saved, the render-and-commit job can still succeed and the deploy job will fail.
 
 ### Zoho Campaigns (EU)
 

@@ -2,26 +2,32 @@
 
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import sys
 import tempfile
 import unittest
 import urllib.parse
+from contextlib import redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from newsletter.build import build_issue
+from newsletter.build import build_issue, resolve_issue_date
+from newsletter.config import load_config
 from newsletter.select import (
     HISTORICAL_POSTS,
+    blurb_skip_reasons,
     format_founder,
     format_post,
     is_complete_founder,
     select_founders,
     select_posts,
+    selection_rules,
 )
 from newsletter.sources import iter_pages
 from newsletter.text import clean_text, format_community_count, trim
@@ -39,7 +45,12 @@ from newsletter.zoho import (
 
 LONG = (
     "A specific public pitch about the product, who it is for, and why a "
-    "co-founder would want to build it with them this quarter."
+    "co-founder would want to build it with them this quarter. I bring "
+    "product and engineering experience from shipping software to real customers."
+)
+JAFET = (
+    "i want money for iphone 18pro and for buy alot of things jaja im joke "
+    "i want top grow up in bussines"
 )
 
 
@@ -178,7 +189,50 @@ class SelectionTests(unittest.TestCase):
 
     def test_need_minimum_founders(self):
         with self.assertRaises(RuntimeError):
-            select_founders([_founder("a", "Asha")], set(), 4, 3)
+            select_founders([_founder("a", "Asha")], set(), 4, 3, rules={})
+
+    def test_sunday_run_dates_the_following_monday(self):
+        sunday = datetime(2026, 11, 22, 13, 0, tzinfo=timezone.utc)
+        monday = datetime(2026, 11, 23, 15, 0, tzinfo=timezone.utc)
+        self.assertEqual(sunday.date().weekday(), 6)
+        self.assertEqual(resolve_issue_date("", sunday), "2026-11-23")
+        self.assertEqual(resolve_issue_date("", monday), "2026-11-23")
+        self.assertEqual(resolve_issue_date("2026-11-16", sunday), "2026-11-16")
+
+    def test_blurb_filter_skips_jafet_and_picks_the_next_founder(self):
+        rules = selection_rules(load_config())
+        reasons = blurb_skip_reasons(JAFET, rules["blurb"])
+        self.assertTrue(any(reason.startswith("too short") for reason in reasons))
+        self.assertIn("mostly lowercase with no sentence capitalization", reasons)
+        self.assertIn("joke or filler", reasons)
+        self.assertIn("wants money for a personal purchase", reasons)
+        self.assertIn("does not describe what they bring or are building", reasons)
+        self.assertEqual(blurb_skip_reasons(LONG, rules["blurb"]), [])
+        junk = _founder("cmujz99x306vt06644bybciu6", "Jafet", elevatorPitchForStartup=JAFET, ideas=[])
+        good = _founder("next", "Nia")
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            chosen = select_founders([junk, good], set(), 1, 1, rules)
+        self.assertEqual([item["id"] for item in chosen], ["next"])
+        log = buffer.getvalue()
+        self.assertIn("skipped founder Jafet (cmujz99x306vt06644bybciu6):", log)
+        self.assertIn("manual exclude", log)
+        self.assertIn("joke or filler", log)
+        lowercase = _founder("low", "Lee", elevatorPitchForStartup=JAFET, ideas=[])
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            chosen = select_founders([lowercase, good], set(), 1, 1, rules)
+        self.assertEqual([item["id"] for item in chosen], ["next"])
+        self.assertIn("mostly lowercase with no sentence capitalization", buffer.getvalue())
+        self.assertNotIn("manual exclude", buffer.getvalue())
+        spam = _founder(
+            "spam",
+            "Sam",
+            elevatorPitchForStartup="Visit https://spam.example and text +1 415 555 1212 about this bitcoin opportunity. " + LONG,
+        )
+        self.assertIn("spammy blurb", blurb_skip_reasons(
+            spam["elevatorPitchForStartup"], rules["blurb"]
+        ))
 
     def test_iter_pages_stops_on_duplicate_page(self):
         def fetch(size, skip):

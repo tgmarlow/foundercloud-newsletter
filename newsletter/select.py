@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from newsletter.text import MINOR_TARGET, clean_text, human_join, trim
 
 # Visible features from the May 4, Jul 8, and Sep 12 issues. Seeded so the
@@ -179,6 +181,127 @@ def is_complete_founder(founder: dict) -> bool:
     return any(len(pitch) >= _MIN_PITCH for _, pitch in pitches)
 
 
+def selection_rules(config: dict | None) -> dict:
+    """Blurb rules and the manual exclude list from newsletter.config.yml."""
+    config = config or {}
+    blurb = config.get("founder_blurb") or {}
+    if not isinstance(blurb, dict):
+        raise RuntimeError("founder_blurb must be a mapping")
+    exclude = []
+    for ident in config.get("exclude_founder_ids") or []:
+        text = str(ident or "").strip()
+        if text and text not in exclude:
+            exclude.append(text)
+    return {"blurb": blurb, "exclude_founder_ids": exclude}
+
+
+def card_blurb_source(founder: dict) -> str:
+    """Pitch text that becomes the Matchboard blurb, before email stripping."""
+    raw_parts: list[str] = []
+    elevator = str(founder.get("elevatorPitchForStartup") or "")
+    if clean_text(elevator):
+        raw_parts.append(elevator)
+    for idea in founder.get("ideas") or []:
+        if idea.get("isActive") is False:
+            continue
+        pitch = str(idea.get("elevatorPitch") or "")
+        if clean_text(pitch):
+            raw_parts.append(pitch)
+    why = str(founder.get("whyMakeGoodCofounder") or "")
+    if clean_text(why):
+        raw_parts.append(why)
+    long_enough = [pitch for pitch in raw_parts if len(clean_text(pitch)) >= _MIN_PITCH]
+    if long_enough:
+        return long_enough[0]
+    return raw_parts[0] if raw_parts else ""
+
+
+def visible_blurb(raw: str) -> str:
+    """Normalize a pitch for quality checks without removing emails or links."""
+    text = str(raw or "")
+    text = re.sub(r"(?i)<\s*br\s*/?\s*>", " ", text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = text.replace("&nbsp;", " ").replace("\xa0", " ")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _has_sentence_capital(text: str) -> bool:
+    stripped = text.lstrip()
+    if stripped[:1].isupper():
+        return True
+    return bool(re.search(r"[.!?]\s+[A-Z]", text))
+
+
+def _marker_present(text: str, marker: str) -> bool:
+    if re.search(r"\s", marker) or "'" in marker:
+        return marker.casefold() in text.casefold()
+    return re.search(rf"(?i)\b{re.escape(marker)}\b", text) is not None
+
+
+def blurb_skip_reasons(text: str, blurb_rules: dict | None) -> list[str]:
+    """Reasons the Matchboard blurb is too low-value to feature. Empty means keep."""
+    rules = blurb_rules or {}
+    reasons: list[str] = []
+    words = re.findall(r"[A-Za-z0-9']+", text)
+    min_words = int(rules.get("min_words") or 25)
+    min_characters = int(rules.get("min_characters") or 150)
+    if len(words) < min_words or len(text) < min_characters:
+        reasons.append(f"too short ({len(words)} words, {len(text)} characters)")
+    letters = [char for char in text if char.isalpha()]
+    lowercase_ratio = float(rules.get("lowercase_ratio") or 0.97)
+    if letters:
+        ratio = sum(1 for char in letters if char.islower()) / len(letters)
+        if ratio >= lowercase_ratio and not _has_sentence_capital(text):
+            reasons.append("mostly lowercase with no sentence capitalization")
+    for marker in rules.get("joke_markers") or []:
+        if _marker_present(text, str(marker)):
+            reasons.append("joke or filler")
+            break
+    for pattern in rules.get("personal_money_patterns") or []:
+        if re.search(str(pattern), text):
+            reasons.append("wants money for a personal purchase")
+            break
+    for pattern in rules.get("spam_patterns") or []:
+        if re.search(str(pattern), text):
+            reasons.append("spammy blurb")
+            break
+    terms = [str(term) for term in (rules.get("substance_terms") or []) if str(term).strip()]
+    if terms and not any(re.search(rf"(?i)\b{re.escape(term)}\w*", text) for term in terms):
+        reasons.append("does not describe what they bring or are building")
+    return reasons
+
+
+def founder_skip_reason(founder: dict, rules: dict | None) -> str | None:
+    """Why a complete profile should be skipped, or None if it can be featured.
+
+    Incomplete profiles return None here; the caller already ignores them.
+    A manual exclude is reported even when the rest of the profile is incomplete.
+    """
+    rules = rules or {}
+    ident = str(founder.get("id") or "").strip()
+    reasons: list[str] = []
+    if ident and ident in set(rules.get("exclude_founder_ids") or []):
+        reasons.append("manual exclude")
+    if not is_complete_founder(founder):
+        return "; ".join(reasons) if reasons else None
+    reasons.extend(blurb_skip_reasons(visible_blurb(card_blurb_source(founder)), rules.get("blurb") or {}))
+    if not reasons:
+        return None
+    return "; ".join(reasons)
+
+
+def founder_is_selectable(founder: dict, used_ids: set[str], rules: dict | None) -> bool:
+    ident = str(founder.get("id") or "")
+    if not ident or ident in used_ids:
+        return False
+    if ident in set((rules or {}).get("exclude_founder_ids") or []):
+        return False
+    if not is_complete_founder(founder):
+        return False
+    return founder_skip_reason(founder, rules) is None
+
+
 def format_post(article: dict, blog_url_template: str) -> dict:
     full = clean_text(article.get("title"))
     if ":" in full:
@@ -228,7 +351,13 @@ def format_founder(founder: dict, profile_url_template: str) -> dict:
     }
 
 
-def select_founders(founders: list[dict], used_ids: set[str], count: int, minimum: int) -> list[dict]:
+def select_founders(
+    founders: list[dict],
+    used_ids: set[str],
+    count: int,
+    minimum: int,
+    rules: dict | None = None,
+) -> list[dict]:
     chosen = []
     seen: set[str] = set()
     for founder in founders:
@@ -236,7 +365,12 @@ def select_founders(founders: list[dict], used_ids: set[str], count: int, minimu
         if not ident or ident in seen or ident in used_ids:
             continue
         seen.add(ident)
-        if not is_complete_founder(founder):
+        if not is_complete_founder(founder) and str(ident) not in set((rules or {}).get("exclude_founder_ids") or []):
+            continue
+        reason = founder_skip_reason(founder, rules)
+        if reason:
+            name = clean_text(founder.get("firstName")) or "unknown"
+            print(f"skipped founder {name} ({ident}): {reason}")
             continue
         chosen.append(founder)
         if len(chosen) == count:
@@ -245,6 +379,7 @@ def select_founders(founders: list[dict], used_ids: set[str], count: int, minimu
         raise RuntimeError(
             f"Need at least {minimum} complete founder profiles, found {len(chosen)}. "
             "A complete profile has a name, location, Cloudinary photo, at least one "
-            "skill, a pitch of 80+ characters, and is on the public founder grid."
+            "skill, a pitch of 80+ characters, a blurb that passes founder_blurb, "
+            "and is on the public founder grid."
         )
     return chosen

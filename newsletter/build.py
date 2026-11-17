@@ -8,7 +8,7 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
@@ -20,8 +20,9 @@ from newsletter.select import (
     empty_state,
     format_founder,
     format_post,
-    is_complete_founder,
+    founder_is_selectable,
     merge_historical,
+    selection_rules,
     select_founders,
     select_posts,
     used_founder_ids,
@@ -32,6 +33,22 @@ from newsletter.text import clean_text, format_community_count
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 EDIT = "[EDIT ME]"
+
+
+def resolve_issue_date(explicit: str = "", today: datetime | None = None) -> str:
+    """Issue date for a run.
+
+    An explicit YYYY-MM-DD is kept as given. A Sunday run with no date builds
+    the following Monday. Any other day with no date uses that UTC date.
+    """
+    text = (explicit or "").strip()
+    if text:
+        return text
+    now = today or datetime.now(timezone.utc)
+    day = now.date()
+    if day.weekday() == 6:
+        day += timedelta(days=1)
+    return day.isoformat()
 
 
 def _collect_pages(fetch_page, page_size: int, max_pages: int, id_key: str, enough) -> list[dict]:
@@ -250,15 +267,14 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
         posts = [format_post(article, config["blog_url_template"]) for article in posts_raw]
 
         used_founders = used_founder_ids(state, date)
+        rules = selection_rules(config)
         founders_raw_all = _collect_pages(
             lambda size, skip: client.founder_page(size, skip),
             page_size=15,
             max_pages=12,
             id_key="id",
             enough=lambda rows: sum(
-                1
-                for row in rows
-                if row.get("id") not in used_founders and is_complete_founder(row)
+                1 for row in rows if founder_is_selectable(row, used_founders, rules)
             )
             >= int(config["founders_per_issue"]),
         )
@@ -267,6 +283,7 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
             used_founder_ids(state, date),
             int(config["founders_per_issue"]),
             int(config["founders_minimum"]),
+            rules,
         )
         founders = [
             format_founder(founder, config["profile_url_template"]) for founder in founders_raw
@@ -375,7 +392,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", default=str(ROOT))
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT") or "")
     args = parser.parse_args(argv)
-    date = (args.date or "").strip() or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date = resolve_issue_date(args.date)
     if not DATE_RE.match(date):
         print("Issue date must be YYYY-MM-DD", file=sys.stderr)
         return 2

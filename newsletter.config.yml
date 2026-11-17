@@ -13,3 +13,57 @@ from_name: Tom at FounderCloud
 posts_per_issue: 2
 founders_per_issue: 4
 founders_minimum: 3
+# Applied only when choosing founders for a new issue. A recorded issue keeps
+# its founders on re-render. Jafet's iPhone blurb is cmujz99x306vt06644bybciu6.
+# cmuh48wx60e8d0677akff0zry is Jonathan, whose blurb is a normal pitch.
+exclude_founder_ids:
+  - cmujz99x306vt06644bybciu6
+founder_blurb:
+  min_words: 25
+  min_characters: 150
+  lowercase_ratio: 0.97
+  joke_markers:
+    - jaja
+    - jajaja
+    - haha
+    - hahaha
+    - lol
+    - lmao
+    - lmfao
+    - hehe
+    - just kidding
+    - i'm joke
+    - im joke
+  personal_money_patterns:
+    - '(?i)\b(want|need|get)\b.{0,40}\bmoney\b'
+    - '(?i)\bmoney\b.{0,40}\b(iphone|ipad|car|rent|clothes|shoes|watch|laptop)\b'
+    - '(?i)\b(buy|for)\b.{0,24}\b(iphone|ipad)\b'
+  spam_patterns:
+    - '(?i)https?://'
+    - '(?i)\bwww\.'
+    - '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b'
+    - '(?i)(?<!\w)\+?\d[\d\s().-]{8,}\d\b'
+    - '(?i)\b(crypto|bitcoin|btc|nft|forex|get rich|guaranteed returns|passive income)\b'
+  substance_terms:
+    - build
+    - founder
+    - startup
+    - product
+    - customer
+    - experience
+    - engineer
+    - develop
+    - business
+    - company
+    - sales
+    - marketing
+    - market
+    - design
+    - software
+    - platform
+    - app
+    - team
+    - technical
+    - saas
+    - career
+    - quality
