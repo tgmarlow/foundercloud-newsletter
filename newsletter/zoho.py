@@ -18,7 +18,14 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from newsletter.build import DATE_RE, load_override, load_state, save_state
+from newsletter.build import (
+    DATE_RE,
+    contains_placeholder,
+    load_override,
+    load_state,
+    note_missing_copy,
+    save_state,
+)
 from newsletter.config import ROOT
 from newsletter.text import clean_text
 
@@ -342,6 +349,14 @@ def create_unsent_draft(env: dict, root: Path, http: ZohoHttp | None = None) -> 
     http = http or ZohoHttp()
     html = wait_for_page(content_url, issue_date)
     subject = subject_from_html(html)
+    if contains_placeholder(html, subject):
+        note_missing_copy(issue_date)
+        return {
+            "skipped": True,
+            "placeholder": True,
+            "issue_date": issue_date,
+            "content_url": content_url,
+        }
     preheader = issue_preheader(root, issue_date)
     token = refresh_access_token(http, env)
     fields = campaign_form(
@@ -386,6 +401,8 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         print(f"Zoho draft failed: {exc}", file=sys.stderr)
         return 1
+    if result.get("placeholder"):
+        return 0
     if result.get("skipped"):
         names = ", ".join(result["missing"])
         print(

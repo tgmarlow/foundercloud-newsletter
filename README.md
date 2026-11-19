@@ -7,7 +7,7 @@ Weekly newsletter pipeline for [FounderCloud](https://www.foundercloud.com/). Ev
 1. Pulls the latest approved blog posts from `https://api.starthawk.io/` (`blogArticles`, `orderBy: "date_DESC"`), preferring slugs not already listed in `state/featured.json`.
 2. Picks 3–4 recent public founder profiles (`usersLookingForCofounder`) that have a name, location, Cloudinary photo, at least one skill, and a pitch, and that have not been featured before. Email addresses written into a pitch are removed. Profiles whose public text recruits minors are skipped. New selections also skip blurbs that fail `founder_blurb` in `newsletter.config.yml` (too short, mostly lowercase, jokes, personal money asks, spam, or no description of what they bring or are building) and any id in `exclude_founder_ids`. Each skip is printed with the reason. Re-rendering a recorded issue keeps that issue's founders.
 3. Reads the community count from `usersLookingForCofounderConnection` and shows it floored to the nearest 500 with a plus (`32,949` → `32,500+`). The exact count is in an HTML comment and in the state file.
-4. Fills the hook, quote, subject, and preheader from `content/YYYY-MM-DD.yml` when that file exists. Otherwise those spots are marked `[EDIT ME]`.
+4. Fills the hook, quote, subject, and preheader from `content/YYYY-MM-DD.yml`. If that file is missing, a required field is empty, or the rendered issue still contains `[EDIT ME]`, the run stays green but sets `copy_ready=false`. Nothing is committed, Pages is not updated, and no Zoho draft is created. An existing `issues/YYYY-MM-DD.html` is left as it is.
 5. Writes `issues/YYYY-MM-DD.html` and `issues/latest.html`, commits them with the state file, and deploys the `issues/` folder with GitHub Pages.
 6. If the Zoho secrets below are all set, waits until the Pages URL returns 200, then `POST`s a form body to `https://campaigns.zoho.eu/api/v1.1/createCampaign` and checks the draft with `getcampaigndetails`. The campaign key is printed in the job log and saved on the issue in `state/featured.json`.
 
@@ -112,6 +112,6 @@ Rendered for **2026-10-28** (the day this pipeline was added). After Pages is se
 - https://tgmarlow.github.io/foundercloud-newsletter/latest.html
 - https://tgmarlow.github.io/foundercloud-newsletter/
 
-The subject, hook, and quote are `[EDIT ME]` until you add `content/2026-10-28.yml` and re-run, or edit the Zoho draft. Do not send it with those placeholders still in place.
+A run without `content/YYYY-MM-DD.yml`, or with `[EDIT ME]` still in the copy, finishes successfully and skips the commit, Pages deploy, and Zoho draft. The log says to add the content file and run the workflow for that date.
 
 The newest blog post on the public API when this was built was 3 Sep 2026, and that post plus the equity essay were already in the Sep 12 issue, so this sample reaches back to the next two unused essays.

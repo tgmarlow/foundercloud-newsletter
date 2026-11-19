@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import shutil
 import sys
 import tempfile
 import unittest
 import urllib.parse
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -17,7 +18,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from newsletter.build import build_issue, resolve_issue_date
+from newsletter.build import build_issue, main as build_main, no_copy_message, resolve_issue_date
 from newsletter.config import load_config
 from newsletter.select import (
     HISTORICAL_POSTS,
@@ -38,6 +39,7 @@ from newsletter.zoho import (
     campaign_form,
     create_unsent_draft,
     encode_form,
+    main as zoho_main,
     missing_secrets,
     record_campaign_key,
     subject_from_html,
@@ -52,6 +54,21 @@ JAFET = (
     "i want money for iphone 18pro and for buy alot of things jaja im joke "
     "i want top grow up in bussines"
 )
+
+
+def _write_copy(root: Path, date: str, subject: str = "Build Sheet: A finished subject line") -> None:
+    content = root / "content"
+    content.mkdir(parents=True, exist_ok=True)
+    (content / f"{date}.yml").write_text(
+        f'subject: "{subject}"\n'
+        'preheader: "Plus: a finished preheader for this issue."\n'
+        "hook:\n"
+        '  - "A real opening paragraph for the issue."\n'
+        "quote:\n"
+        '  text: "Do things that don\'t scale."\n'
+        '  attribution: "Paul Graham"\n',
+        encoding="utf-8",
+    )
 
 
 def _article(slug, title, approved=True):
@@ -249,6 +266,7 @@ class RenderTests(unittest.TestCase):
             (root / "templates").mkdir()
             shutil.copy(ROOT / "templates" / "build_sheet.html.j2", root / "templates" / "build_sheet.html.j2")
             shutil.copy(ROOT / "newsletter.config.yml", root / "newsletter.config.yml")
+            _write_copy(root, "2026-10-28")
             summary = build_issue(root, "2026-10-28", FakeClient())
             html = (root / "issues" / "2026-10-28.html").read_text(encoding="utf-8")
             latest = (root / "issues" / "latest.html").read_text(encoding="utf-8")
@@ -282,7 +300,8 @@ class RenderTests(unittest.TestCase):
             self.assertNotIn("STARTHAWK", html)
             self.assertNotIn("foundercloud-logo.png", html)
             self.assertNotIn(HISTORICAL_POSTS[0]["slug"], html)
-            self.assertTrue(summary["needs_edit"])
+            self.assertNotIn("[edit me]", html.casefold())
+            self.assertFalse(summary["needs_edit"])
             self.assertEqual(summary["pages_url"], "https://tgmarlow.github.io/foundercloud-newsletter/2026-10-28.html")
 
             state_path = root / "state" / "featured.json"
@@ -304,26 +323,17 @@ class RenderTests(unittest.TestCase):
             (root / "templates").mkdir()
             shutil.copy(ROOT / "templates" / "build_sheet.html.j2", root / "templates" / "build_sheet.html.j2")
             shutil.copy(ROOT / "newsletter.config.yml", root / "newsletter.config.yml")
+            _write_copy(root, "2026-11-09", "Build Sheet: Good calls before the data is clear")
             client = FakeClient()
             build_issue(root, "2026-11-09", client)
             state_path = root / "state" / "featured.json"
             state = json.loads(state_path.read_text(encoding="utf-8"))
             original_posts = list(state["issues"]["2026-11-09"]["posts"])
             original_founders = list(state["issues"]["2026-11-09"]["founders"])
+            state["issues"]["2026-11-09"]["needs_edit"] = True
+            state["issues"]["2026-11-09"]["subject"] = "[EDIT ME] Build Sheet: Dead Reckoning"
             state["issues"]["2026-11-09"]["campaign_key"] = "placeholder-draft"
             state_path.write_text(json.dumps(state), encoding="utf-8")
-            content = root / "content"
-            content.mkdir()
-            (content / "2026-11-09.yml").write_text(
-                'subject: "Build Sheet: Good calls before the data is clear"\n'
-                'preheader: "Plus: what to hand your AI agents overnight."\n'
-                "hook:\n"
-                '  - "A real opening."\n'
-                "quote:\n"
-                '  text: "All models are wrong but some are useful."\n'
-                '  attribution: "George E. P. Box"\n',
-                encoding="utf-8",
-            )
 
             class NewerFirst(FakeClient):
                 def blog_page(self, first, skip):
@@ -349,7 +359,7 @@ class RenderTests(unittest.TestCase):
             self.assertEqual(issue["superseded_campaign_keys"], ["placeholder-draft"])
             self.assertIn("Good calls before the data is clear", summary["subject"])
             html = (root / "issues" / "2026-11-09.html").read_text(encoding="utf-8")
-            self.assertIn("A real opening.", html)
+            self.assertIn("A real opening paragraph for the issue.", html)
             self.assertIn("fresh-alpha", html)
             self.assertNotIn("brand-new", html)
             self.assertNotIn("Zara", html)
@@ -361,6 +371,48 @@ class RenderTests(unittest.TestCase):
                 saved["issues"]["2026-11-09"]["superseded_campaign_keys"],
                 ["placeholder-draft"],
             )
+
+    def test_missing_content_skips_publish(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "templates").mkdir()
+            shutil.copy(ROOT / "templates" / "build_sheet.html.j2", root / "templates" / "build_sheet.html.j2")
+            shutil.copy(ROOT / "newsletter.config.yml", root / "newsletter.config.yml")
+            kept = root / "issues" / "2026-11-23.html"
+            kept.parent.mkdir()
+            kept.write_text("GOOD ISSUE", encoding="utf-8")
+            summary_result = build_issue(root, "2026-11-23", FakeClient())
+            self.assertFalse(summary_result["copy_ready"])
+            self.assertEqual(kept.read_text(encoding="utf-8"), "GOOD ISSUE")
+            self.assertFalse((root / "state").exists())
+            message = no_copy_message("2026-11-23")
+            summary = root / "summary.md"
+            output = root / "github-output.txt"
+            env = {"GITHUB_STEP_SUMMARY": str(summary), "GITHUB_OUTPUT": str(output)}
+            with patch.dict(os.environ, env, clear=False):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    code = build_main(["--date", "2026-11-23", "--root", str(root)])
+            self.assertEqual(code, 0)
+            self.assertIn(f"::warning::{message}", stdout.getvalue())
+            self.assertEqual(summary.read_text(encoding="utf-8").strip(), message)
+            self.assertIn("copy_ready=false", output.read_text(encoding="utf-8"))
+            self.assertEqual(kept.read_text(encoding="utf-8"), "GOOD ISSUE")
+
+    def test_placeholder_content_skips_publish(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "templates").mkdir()
+            shutil.copy(ROOT / "templates" / "build_sheet.html.j2", root / "templates" / "build_sheet.html.j2")
+            shutil.copy(ROOT / "newsletter.config.yml", root / "newsletter.config.yml")
+            kept = root / "issues" / "2026-12-07.html"
+            kept.parent.mkdir()
+            kept.write_text("GOOD ISSUE", encoding="utf-8")
+            _write_copy(root, "2026-12-07", "[edit me] Build Sheet: Still a placeholder")
+            summary_result = build_issue(root, "2026-12-07", FakeClient())
+            self.assertFalse(summary_result["copy_ready"])
+            self.assertEqual(kept.read_text(encoding="utf-8"), "GOOD ISSUE")
+            self.assertFalse((root / "state").exists())
 
 
 class FakeZoho(ZohoHttp):
@@ -467,7 +519,7 @@ class ZohoTests(unittest.TestCase):
             )
             http = FakeZoho()
             html = (
-                "<title>[EDIT ME] Build Sheet: Hello</title>"
+                "<title>Build Sheet: Hello</title>"
                 "The Build Sheet from FounderCloud"
                 "2026-10-28"
             )
@@ -490,6 +542,47 @@ class ZohoTests(unittest.TestCase):
             with patch("newsletter.zoho.wait_for_page", side_effect=AssertionError("should not fetch")):
                 again = create_unsent_draft(env, root, http=http)
             self.assertTrue(again["already_exists"])
+            self.assertEqual(http.posts, [])
+
+    def test_refuses_placeholder_html(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = {
+                "ZOHO_CLIENT_ID": "id",
+                "ZOHO_CLIENT_SECRET": "secret",
+                "ZOHO_REFRESH_TOKEN": "refresh",
+                "ZOHO_LIST_KEY": "list123",
+                "ZOHO_FROM_EMAIL": "weeklyupdate@starthawk.io",
+                "ZOHO_TOPIC_ID": "topic-9",
+                "ISSUE_DATE": "2026-10-28",
+                "CONTENT_URL": "https://tgmarlow.github.io/foundercloud-newsletter/2026-10-28.html",
+            }
+            http = FakeZoho()
+            html = (
+                "<title>[EDIT ME] Build Sheet: Hello</title>"
+                "The Build Sheet from FounderCloud"
+                "2026-10-28"
+            )
+            with patch("newsletter.zoho.wait_for_page", return_value=html):
+                result = create_unsent_draft(env, root, http=http)
+            self.assertTrue(result["placeholder"])
+            self.assertTrue(result["skipped"])
+            self.assertEqual(http.posts, [])
+            self.assertFalse((root / "state" / "featured.json").exists())
+            summary = root / "summary.md"
+            with patch.dict(os.environ, {**env, "GITHUB_STEP_SUMMARY": str(summary)}, clear=False):
+                with patch("newsletter.zoho.wait_for_page", return_value=html):
+                    stdout = io.StringIO()
+                    with redirect_stdout(stdout):
+                        code = zoho_main([
+                            "--date", "2026-10-28",
+                            "--content-url", env["CONTENT_URL"],
+                            "--root", str(root),
+                        ])
+            self.assertEqual(code, 0)
+            message = no_copy_message("2026-10-28")
+            self.assertIn(f"::warning::{message}", stdout.getvalue())
+            self.assertEqual(summary.read_text(encoding="utf-8").strip(), message)
             self.assertEqual(http.posts, [])
 
     def test_reapply_campaign_key_keeps_newer_render(self):

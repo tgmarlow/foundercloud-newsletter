@@ -26,6 +26,7 @@ jobs:
     outputs:
       issue_date: ${{ steps.render.outputs.issue_date }}
       pages_url: ${{ steps.render.outputs.pages_url }}
+      copy_ready: ${{ steps.render.outputs.copy_ready }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,6 +46,7 @@ jobs:
         run: python scripts/build_issue.py --github-output "$GITHUB_OUTPUT"
 
       - name: Commit rendered issue and state
+        if: steps.render.outputs.copy_ready == 'true'
         run: |
           git config user.name "foundercloud-newsletter"
           git config user.email "weeklyupdate@starthawk.io"
@@ -97,15 +99,18 @@ jobs:
           fi
 
       - name: Setup Pages
+        if: steps.render.outputs.copy_ready == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: steps.render.outputs.copy_ready == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: issues
 
   deploy:
     needs: build
+    if: needs.build.outputs.copy_ready == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -117,6 +122,7 @@ jobs:
 
   zoho:
     needs: [build, deploy]
+    if: needs.build.outputs.copy_ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main

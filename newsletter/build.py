@@ -33,6 +33,86 @@ from newsletter.text import clean_text, format_community_count
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 EDIT = "[EDIT ME]"
+_PLACEHOLDER_RE = re.compile(r"\[edit me\]", re.IGNORECASE)
+
+
+def no_copy_message(date: str) -> str:
+    return (
+        f"No copy for {date} yet. No draft was created. "
+        f"Add content/{date}.yml and use Run workflow with that date."
+    )
+
+
+def contains_placeholder(*parts: object) -> bool:
+    return any(_PLACEHOLDER_RE.search(str(part or "")) for part in parts)
+
+
+def note_missing_copy(date: str) -> str:
+    """Warn in the log and the job summary. The run stays green and unpublished."""
+    message = no_copy_message(date)
+    print(message)
+    safe = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    print(f"::warning::{safe}")
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        with open(summary_path, "a", encoding="utf-8") as handle:
+            handle.write(message + "\n")
+    return message
+
+
+def _copy_fields(override: dict) -> dict[str, object]:
+    quote = override.get("quote")
+    quote_text = ""
+    quote_attribution = ""
+    if isinstance(quote, str):
+        quote_text = clean_text(quote)
+    elif isinstance(quote, dict):
+        quote_text = clean_text(quote.get("text") or "")
+        quote_attribution = clean_text(quote.get("attribution") or "")
+    return {
+        "subject": clean_text(override.get("subject") or ""),
+        "preheader": clean_text(override.get("preheader") or ""),
+        "hook": _paragraphs(override.get("hook")),
+        "quote_text": quote_text,
+        "quote_attribution": quote_attribution,
+    }
+
+
+def copy_is_ready(root: Path, date: str) -> bool:
+    """False when the issue must not be committed, published, or drafted."""
+    path = root / "content" / f"{date}.yml"
+    if not path.exists():
+        return False
+    fields = _copy_fields(load_override(path))
+    hook = fields["hook"] if isinstance(fields["hook"], list) else []
+    if (
+        not fields["subject"]
+        or not fields["preheader"]
+        or not hook
+        or not fields["quote_text"]
+        or not fields["quote_attribution"]
+    ):
+        return False
+    return not contains_placeholder(
+        fields["subject"],
+        fields["preheader"],
+        fields["quote_text"],
+        fields["quote_attribution"],
+        *hook,
+    )
+
+
+def _unpublished(date: str) -> dict:
+    return {
+        "issue_date": date,
+        "copy_ready": False,
+        "pages_url": "",
+        "needs_edit": True,
+        "subject": "",
+        "warnings": [],
+        "posts": [],
+        "founders": [],
+    }
 
 
 def resolve_issue_date(explicit: str = "", today: datetime | None = None) -> str:
@@ -212,6 +292,10 @@ def _remember(items: list[dict], issue: str, key: str, fresh: list[dict]) -> lis
 def build_issue(root: Path, date: str, client: FounderCloudClient | None = None) -> dict:
     if not DATE_RE.match(date):
         raise RuntimeError(f"Issue date must be YYYY-MM-DD, got {date!r}")
+    # Unfinished copy is not published. Leave any existing issue HTML in place.
+    if not copy_is_ready(root, date):
+        return _unpublished(date)
+    override = load_override(root / "content" / f"{date}.yml")
     config = load_config(root)
     client = client or FounderCloudClient(config["graphql_url"])
     state_path = root / "state" / "featured.json"
@@ -291,7 +375,6 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
 
     raw_count = int(client.community_count())
     count_display = format_community_count(raw_count)
-    override = load_override(root / "content" / f"{date}.yml")
     editorial = apply_editorial(posts, override, count_display)
 
     context = {
@@ -308,6 +391,8 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
         "instagram_url": config["instagram_url"],
     }
     html = render_issue(root / "templates", context)
+    if contains_placeholder(html, editorial["subject"], editorial["preheader"]):
+        return _unpublished(date)
     issues_dir = root / "issues"
     issues_dir.mkdir(parents=True, exist_ok=True)
     dated_name = f"{date}.html"
@@ -374,6 +459,7 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
         "warnings": warnings,
         "needs_edit": editorial["needs_edit"],
         "dated_path": str(dated_path),
+        "copy_ready": True,
     }
     return summary
 
@@ -381,9 +467,11 @@ def build_issue(root: Path, date: str, client: FounderCloudClient | None = None)
 def _write_github_output(path: str, summary: dict) -> None:
     if not path:
         return
+    ready = "true" if summary.get("copy_ready") else "false"
     with open(path, "a", encoding="utf-8") as handle:
         handle.write(f"issue_date={summary['issue_date']}\n")
-        handle.write(f"pages_url={summary['pages_url']}\n")
+        handle.write(f"pages_url={summary.get('pages_url') or ''}\n")
+        handle.write(f"copy_ready={ready}\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -402,6 +490,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Build failed: {exc}", file=sys.stderr)
         return 1
     _write_github_output(args.github_output, summary)
+    if not summary.get("copy_ready"):
+        note_missing_copy(summary["issue_date"])
+        return 0
     print(f"Rendered {summary['dated_path']}")
     print(f"pages_url={summary['pages_url']}")
     print(f"subject={summary['subject']}")
